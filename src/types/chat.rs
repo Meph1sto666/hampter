@@ -1,6 +1,15 @@
-use serde::Deserialize;
-use serde_json::json;
+use super::{misc, profile::Profile};
 use crate::auth::AuthorizedClient;
+use futures::io::BufReader;
+use futures::stream::{self};
+use futures::AsyncBufReadExt;
+use futures::{
+	stream::{MapErr, TryStreamExt},
+	Stream,
+};
+use getters2::Getters;
+use serde_json::json;
+use std::io;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct Character {
@@ -16,8 +25,7 @@ pub struct Character {
 	soundcloud_track_id: Option<String>,
 }
 
-#[derive(Clone)]
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct Message {
 	id: u64,
 	created_at: chrono::DateTime<chrono::Utc>,
@@ -29,7 +37,14 @@ pub struct Message {
 }
 
 impl Message {
-	pub fn new(mut id: Option<u64>, is_bot: bool, is_main: bool, chat_id: u64, content: &str, rating: Option<f32>) -> Self {
+	pub fn new(
+		mut id: Option<u64>,
+		is_bot: bool,
+		is_main: bool,
+		chat_id: u64,
+		content: &str,
+		rating: Option<f32>,
+	) -> Self {
 		Message {
 			id: *id.get_or_insert(0),
 			created_at: chrono::Utc::now(),
@@ -37,7 +52,7 @@ impl Message {
 			is_main: is_main,
 			chat_id: chat_id,
 			message: content.to_string(),
-			rating: rating
+			rating: rating,
 		}
 	}
 }
@@ -47,6 +62,47 @@ impl ToString for Message {
 	}
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct TextDelta {
+	role: Option<String>,
+	content: String,
+}
+
+#[derive(Getters, serde::Deserialize, serde::Serialize)]
+pub struct TextChoice {
+	index: u64,
+	delta: TextDelta,
+	logprobs: Option<String>,
+	finish_reason: Option<String>,
+}
+
+#[derive(Getters, serde::Deserialize, serde::Serialize)]
+pub struct MessageChunk {
+	id: String,
+	object: String,
+	created: u64,
+	model: String,
+	choices: Vec<TextChoice>,
+}
+
+impl MessageChunk {
+	pub fn from_line(line: &String) -> Option<MessageChunk> {
+		if line.is_empty() || line.to_lowercase().contains("data: [done]") {
+			return None;
+		}
+		let parsed = serde_json::from_str(&line.to_string().split_off(6));
+		return Some(parsed.expect("Failed to parse response chunk"));
+	}
+
+	pub fn content(&self, mut index: Option<usize>) -> &String {
+		&self
+			.choices
+			.get(*index.get_or_insert(0))
+			.unwrap()
+			.delta
+			.content
+	}
+}
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct ChatInfo {
@@ -54,28 +110,13 @@ pub struct ChatInfo {
 	is_public: bool,
 	summary: String,
 	summary_chat_id: Option<String>,
-	#[serde(deserialize_with="u46_from_string")] //, serialize_with=""
+	#[serde(deserialize_with = "misc::u64_from_string")] //, serialize_with=""
 	chat_count: u64, // response has String here
 	updated_at: chrono::DateTime<chrono::Utc>,
 	user_id: String,
 	character_id: String,
 	persona_id: Option<String>,
 }
-fn u46_from_string<'de, D>(deserializer: D) -> Result<u64, D::Error>
-where
-	D: serde::Deserializer<'de>,
-{
-	let s: &str = Deserialize::deserialize(deserializer)?;
-	s.parse().map_err(serde::de::Error::custom)
-}
-
-// fn serialize_u64_as_string<S>(value: &u64, serializer: S) -> Result<S::Ok, S::Error>
-// where
-//     S: serde_json::Serializer<>,
-// {
-//     // Convert the u64 to a String and serialize it
-//     serializer.serialize_str(&value.to_string())
-// }
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct Chat {
@@ -130,5 +171,93 @@ impl Chat {
 			.get(0)
 			.expect("Response was empty")
 			.clone()
+	}
+}
+
+#[derive(PartialEq, Eq)]
+pub enum GenerationMode {
+	New,
+	Suggestion,
+	SummaryFull,
+	SummaryLast,
+	Alternative,
+}
+impl ToString for GenerationMode {
+	fn to_string(&self) -> String {
+		match self {
+			GenerationMode::New => "NEW".to_string(),
+			GenerationMode::Alternative => "ALTERNATIVE".to_string(),
+			GenerationMode::Suggestion => "SUGGESTION".to_string(),
+			GenerationMode::SummaryFull => "SUMMARY_FULL".to_string(),
+			GenerationMode::SummaryLast => "SUMMARY_LAST".to_string(),
+		}
+	}
+}
+
+impl Chat {
+	pub async fn generate(
+		&self,
+		client: &AuthorizedClient,
+		profile: &Profile,
+		mut mode: Option<GenerationMode>,
+		message: Option<Message>,
+	) -> futures::io::Lines<
+		BufReader<
+			stream::IntoAsyncRead<
+				MapErr<
+					impl Stream<Item = Result<tokio_util::bytes::Bytes, reqwest::Error>>,
+					impl FnMut(reqwest::Error) -> io::Error,
+				>,
+			>,
+		>,
+	> {
+		let mode = mode.get_or_insert(GenerationMode::New);
+		if *mode == GenerationMode::Suggestion
+			&& message
+				.clone()
+				.is_some_and(|m: Message| m.message.len() > 20)
+		{
+			io::Error::new(io::ErrorKind::InvalidInput, "error".to_string()); //Err("Missing message to use auto complete".to_string())
+																			  // return ;
+		}
+		let response: reqwest::Response = client
+			.client()
+			.post("https://janitorai.com/generateAlpha")
+			.json(&json!({
+				"generateMode": mode.to_string(),
+				"userConfig": profile.config_ref(),
+				"profile": {
+					"id": profile.id_ref(),
+					"name": profile.name_ref(),
+					"user_appearance": "Male", // TODO: get gender somehow?
+					"user_name": profile.user_name_ref(),
+				},
+				"personas": [],
+				"chat": {
+					"id": self.chat.id,
+					"user_id": self.chat.user_id,
+					"character_id": self.chat.character_id,
+					"summary": self.chat.summary
+				},
+				"chatMessages": self.chat_messages,
+				"forcedPromptGenerationCacheRefetch": { // TODO: get that too somewhere
+					"chat": false,
+					"character": false,
+					"profile": false,
+				}
+			}))
+			.header(reqwest::header::ORIGIN, "https://janitorai.com")
+			.send()
+			.await
+			.expect("Failed to post generation request")
+			.error_for_status()
+			.expect("Invalid response");
+
+		let reader = response
+			.bytes_stream()
+			.map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+			.into_async_read();
+		let decoder = BufReader::new(reader);
+		decoder.lines()
 	}
 }
