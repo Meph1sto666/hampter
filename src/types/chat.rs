@@ -25,7 +25,7 @@ pub struct Character {
 	soundcloud_track_id: Option<String>,
 }
 
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, Getters)]
 pub struct Message {
 	id: u64,
 	created_at: chrono::DateTime<chrono::Utc>,
@@ -104,7 +104,7 @@ impl MessageChunk {
 	}
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Getters)]
 pub struct ChatInfo {
 	id: u32, //615543871,
 	is_public: bool,
@@ -118,7 +118,7 @@ pub struct ChatInfo {
 	persona_id: Option<String>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Getters)]
 pub struct Chat {
 	chat: ChatInfo,
 	character: Character,
@@ -171,6 +171,21 @@ impl Chat {
 			.get(0)
 			.expect("Response was empty")
 			.clone()
+	}
+
+	pub async fn edit_message(&mut self, message_id: u64, content: &str, client: &AuthorizedClient) {
+		client.client().patch(
+			format!("https://janitorai.com/hampter/chats/{chat}/messages/{message}", chat=self.chat.id, message=message_id).to_string()
+		)
+		.json(&json!({
+			"is_main": true, // so far always has been true in the originals
+			"message": content
+		}))
+		.send().await.expect("Failed to send message patch");
+		self.chat_messages.iter_mut().find(|e: &&mut Message| e.id == message_id).expect("No message with the given ID").message = content.to_string();
+	}
+	pub fn get_message(&self, message_id: u64) -> std::option::Option<Message> {
+		self.chat_messages.iter().find(|e: &&Message| e.id == message_id).cloned()
 	}
 }
 
