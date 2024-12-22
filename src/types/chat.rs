@@ -187,6 +187,19 @@ impl Chat {
 	pub fn get_message(&self, message_id: u64) -> std::option::Option<Message> {
 		self.chat_messages.iter().find(|e: &&Message| e.id == message_id).cloned()
 	}
+	
+	pub async fn delete_messages(&mut self, message_ids: Vec<u64>, client: &AuthorizedClient) {
+		client.client().delete(
+			format!("https://janitorai.com/hampter/chats/{chat}/messages", chat=self.chat.id).to_string()
+		)
+		.json(&json!({
+			"message_ids": message_ids
+		}))
+		.send().await.expect("Failed to send delete message");
+		for m_id in message_ids {
+			self.chat_messages.remove(self.chat_messages.iter().position(|message: &Message| message.id == m_id).unwrap());
+		}
+	}
 }
 
 #[derive(PartialEq, Eq)]
