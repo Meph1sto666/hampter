@@ -160,6 +160,42 @@ impl Chat {
 			.error_for_status()
 			.expect("Invalid response");
 	}
+	
+	#[must_use]
+	pub async fn create(character_id: &str, client: &AuthorizedClient) -> Chat {
+		/**
+		 * Open a new chat with a character
+		 */
+		#[derive(serde::Deserialize, serde::Serialize)]
+		struct CreateChatResponse {
+			id: u64,
+			created_at: chrono::DateTime<chrono::Utc>,
+			character_id: String,
+			user_id: String,
+			is_public: bool,
+			summary: String,
+			summary_chat_id: Option<String>,
+			updated_at: chrono::DateTime<chrono::Utc>,
+			chat_count: u64,
+			is_deleted: bool,
+		}
+
+		let res = client
+			.client()
+			.post("https://janitorai.com/hampter/chats")
+			.json(&json!({
+				"character_id": character_id
+			}))
+			.send()
+			.await
+			.expect("Failed to create new chat")
+			.error_for_status()
+			.expect("Invalid response")
+			.json::<CreateChatResponse>()
+			.await
+			.expect("Failed to parse response");
+		return Self::get(res.id, client).await;
+	}
 }
 
 #[derive(PartialEq, Eq)]

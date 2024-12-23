@@ -15,7 +15,7 @@ This project is a wrapper JanitorAI's API to make communication with the server 
     - [ ] discord
   - [ ] sign up (same here)
 - [ ] chat
-  - [ ] create
+  - [x] create
   - [x] get
   - [ ] list (character-chats)
   - [x] delete
