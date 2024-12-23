@@ -32,7 +32,7 @@ This project is a wrapper for JanitorAI's API to make communication with the ser
   - [x] get (default to mine)
 - [ ] personas
   - [ ] create
-  - [ ] get
+  - [x] get
   - [ ] edit
   - [ ] delete
 - [ ] character
