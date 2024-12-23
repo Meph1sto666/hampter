@@ -15,10 +15,10 @@ This project is a wrapper for JanitorAI's API to make communication with the ser
     - [ ] discord
   - [ ] sign up (same here)
 - [ ] chat
-  - [ ] create
+  - [x] create
   - [x] get
   - [ ] list (character-chats)
-  - [ ] delete
+  - [x] delete
   - [ ] message
     - [x] send
     - [ ] generate (missing a few dynamic parameters)

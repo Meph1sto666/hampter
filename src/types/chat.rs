@@ -133,6 +133,9 @@ impl ToString for Chat {
 }
 
 impl Chat {
+	/**
+	 * Chat actions
+	 */
 	pub async fn get(id: u64, client: &AuthorizedClient) -> Chat {
 		client
 			.client()
@@ -147,58 +150,51 @@ impl Chat {
 			.expect("Failed to parse chat response")
 	}
 
-	pub async fn send_message(&mut self, message: Message, client: &AuthorizedClient) -> Message {
+	pub async fn delete(id: u64, client: &AuthorizedClient) {
 		client
 			.client()
-			.post("https://janitorai.com/hampter/chats/615543871/messages")
+			.delete(format!("https://janitorai.com/hampter/chats/{id}", id = id))
+			.send()
+			.await
+			.expect("Failed to send chat delete message")
+			.error_for_status()
+			.expect("Invalid response");
+	}
+	
+	#[must_use]
+	pub async fn create(character_id: &str, client: &AuthorizedClient) -> Chat {
+		/**
+		 * Open a new chat with a character
+		 */
+		#[derive(serde::Deserialize, serde::Serialize)]
+		struct CreateChatResponse {
+			id: u64,
+			created_at: chrono::DateTime<chrono::Utc>,
+			character_id: String,
+			user_id: String,
+			is_public: bool,
+			summary: String,
+			summary_chat_id: Option<String>,
+			updated_at: chrono::DateTime<chrono::Utc>,
+			chat_count: u64,
+			is_deleted: bool,
+		}
+
+		let res = client
+			.client()
+			.post("https://janitorai.com/hampter/chats")
 			.json(&json!({
-				"id": message.id,
-				"created_at": message.created_at,
-				"is_bot": message.is_bot,
-				"is_main": message.is_main,
-				"chat_id": message.chat_id,
-				"message": message.message,
-				"rating": message.rating
+				"character_id": character_id
 			}))
 			.send()
 			.await
-			.expect("Failed to post message")
+			.expect("Failed to create new chat")
 			.error_for_status()
 			.expect("Invalid response")
-			.json::<Vec<Message>>()
+			.json::<CreateChatResponse>()
 			.await
-			.expect("Failed to parse post response")
-			.get(0)
-			.expect("Response was empty")
-			.clone()
-	}
-
-	pub async fn edit_message(&mut self, message_id: u64, content: &str, client: &AuthorizedClient) {
-		client.client().patch(
-			format!("https://janitorai.com/hampter/chats/{chat}/messages/{message}", chat=self.chat.id, message=message_id).to_string()
-		)
-		.json(&json!({
-			"is_main": true, // so far always has been true in the originals
-			"message": content
-		}))
-		.send().await.expect("Failed to send message patch");
-		self.chat_messages.iter_mut().find(|e: &&mut Message| e.id == message_id).expect("No message with the given ID").message = content.to_string();
-	}
-	pub fn get_message(&self, message_id: u64) -> std::option::Option<Message> {
-		self.chat_messages.iter().find(|e: &&Message| e.id == message_id).cloned()
-	}
-	
-	pub async fn delete_messages(&mut self, message_ids: Vec<u64>, client: &AuthorizedClient) {
-		client.client().delete(
-			format!("https://janitorai.com/hampter/chats/{chat}/messages", chat=self.chat.id).to_string()
-		)
-		.json(&json!({
-			"message_ids": message_ids
-		}))
-		.send().await.expect("Failed to send delete message");
-		for m_id in message_ids {
-			self.chat_messages.remove(self.chat_messages.iter().position(|message: &Message| message.id == m_id).unwrap());
-		}
+			.expect("Failed to parse response");
+		return Self::get(res.id, client).await;
 	}
 }
 
@@ -223,6 +219,9 @@ impl ToString for GenerationMode {
 }
 
 impl Chat {
+	/**
+	 * Chat message actions
+	 */
 	pub async fn generate(
 		&self,
 		client: &AuthorizedClient,
@@ -246,7 +245,6 @@ impl Chat {
 				.is_some_and(|m: Message| m.message.len() > 20)
 		{
 			io::Error::new(io::ErrorKind::InvalidInput, "error".to_string()); //Err("Missing message to use auto complete".to_string())
-																			  // return ;
 		}
 		let response: reqwest::Response = client
 			.client()
@@ -287,5 +285,93 @@ impl Chat {
 			.into_async_read();
 		let decoder = BufReader::new(reader);
 		decoder.lines()
+	}
+
+	pub async fn send_message(&mut self, message: Message, client: &AuthorizedClient) -> Message {
+		client
+			.client()
+			.post("https://janitorai.com/hampter/chats/615543871/messages")
+			.json(&json!({
+				"id": message.id,
+				"created_at": message.created_at,
+				"is_bot": message.is_bot,
+				"is_main": message.is_main,
+				"chat_id": message.chat_id,
+				"message": message.message,
+				"rating": message.rating
+			}))
+			.send()
+			.await
+			.expect("Failed to post message")
+			.error_for_status()
+			.expect("Invalid response")
+			.json::<Vec<Message>>()
+			.await
+			.expect("Failed to parse post response")
+			.get(0)
+			.expect("Response was empty")
+			.clone()
+	}
+
+	pub async fn edit_message(
+		&mut self,
+		message_id: u64,
+		content: &str,
+		client: &AuthorizedClient,
+	) {
+		client
+			.client()
+			.patch(
+				format!(
+					"https://janitorai.com/hampter/chats/{chat}/messages/{message}",
+					chat = self.chat.id,
+					message = message_id
+				)
+				.to_string(),
+			)
+			.json(&json!({
+				"is_main": true, // so far always has been true in the originals
+				"message": content
+			}))
+			.send()
+			.await
+			.expect("Failed to send message patch");
+		self.chat_messages
+			.iter_mut()
+			.find(|e: &&mut Message| e.id == message_id)
+			.expect("No message with the given ID")
+			.message = content.to_string();
+	}
+	pub fn get_message(&self, message_id: u64) -> std::option::Option<Message> {
+		self.chat_messages
+			.iter()
+			.find(|e: &&Message| e.id == message_id)
+			.cloned()
+	}
+
+	pub async fn delete_messages(&mut self, message_ids: Vec<u64>, client: &AuthorizedClient) {
+		client
+			.client()
+			.delete(
+				format!(
+					"https://janitorai.com/hampter/chats/{chat}/messages",
+					chat = self.chat.id
+				)
+				.to_string(),
+			)
+			.json(&json!({
+				"message_ids": message_ids
+			}))
+			.send()
+			.await
+			.expect("Failed to send delete message");
+		for m_id in message_ids {
+			self.chat_messages.remove(
+				self.chat_messages
+					.iter()
+					.position(|message: &Message| message.id == m_id)
+					.unwrap(),
+			);
+		}
 	}
 }
