@@ -18,7 +18,7 @@ This project is a wrapper JanitorAI's API to make communication with the server 
   - [ ] create
   - [x] get
   - [ ] list (character-chats)
-  - [ ] delete
+  - [x] delete
   - [ ] message
     - [x] send
     - [ ] generate (missing a few dynamic parameters)
