@@ -42,9 +42,10 @@ This project is a wrapper for JanitorAI's API to make communication with the ser
   - [ ] get
   - [ ] delete
   - [ ] edit
-- [ ] tags
-  - [ ] get tag list
-  - [ ] get tag
+- [x] tags
+  - [x] get tag list
+  - [x] get custom tag suggestions
+  - [x] set following tags
 - [ ] reviews
 - [ ] favourites
 - [ ] add crate to cargo
@@ -61,7 +62,7 @@ let client: &AuthorizedClient = &AuthorizedClient::new(
 	"cf_clearance_token",
 	"bearer_auth_token",
 	"refresh_token", // obligatory to request a new bearer token every 30 minutes
-	"x_app_version", // not needed for msot requests yet essential for text generation	
+	"x_app_version", // not needed for most requests yet essential for text generation	
 	"api_key" // only needed for refreshing the auth token
 )
 ```
