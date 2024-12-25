@@ -5,8 +5,7 @@ use std::collections::HashMap;
 
 use super::misc;
 
-#[derive(Getters)]
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Getters)]
 struct GenerationSettings {
 	temperature: f32,    // default to 1.1
 	max_new_token: i16,  // default to 500
@@ -22,8 +21,7 @@ impl Default for GenerationSettings {
 	}
 }
 
-#[derive(Getters)]
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Getters)]
 pub struct Config {
 	chat_custom_background_image: String, // default ""
 	chat_custom_background_opacity: u8,   // default 10
@@ -77,7 +75,7 @@ impl Default for Config {
 	}
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Getters)]
 pub struct Persona {
 	id: String,
 	name: String,
@@ -87,8 +85,7 @@ pub struct Persona {
 	updated_at: chrono::DateTime<chrono::Utc>
 }
 
-#[derive(Getters)]
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Getters)]
 pub struct Profile {
 	id: String,
 	avatar: String,

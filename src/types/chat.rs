@@ -11,7 +11,7 @@ use getters2::Getters;
 use serde_json::json;
 use std::io;
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Getters)]
 pub struct Character {
 	id: String,
 	name: String,
@@ -62,7 +62,7 @@ impl ToString for Message {
 	}
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Getters)]
 pub struct TextDelta {
 	role: Option<String>,
 	content: String,

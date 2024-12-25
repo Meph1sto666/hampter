@@ -36,10 +36,10 @@ This project is a wrapper for JanitorAI's API to make communication with the ser
   - [ ] edit
   - [ ] delete
 - [ ] character
-  - [ ] query (searching)
+  - [x] query (searching)
   - [ ] create
     - [ ] upload image
-  - [ ] get
+  - [x] get
   - [ ] delete
   - [ ] edit
 - [x] tags
