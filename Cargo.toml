@@ -1,7 +1,9 @@
 [package]
 name = "hampter"
+description = "A 3rd party wrapper for the JanitorAI api"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 async-stream = "0.3.6"

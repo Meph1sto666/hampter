@@ -1,6 +1,7 @@
 use reqwest::{self, header::HeaderValue};
 use serde_json::json;
 
+#[allow(unused)]
 pub struct AuthorizedClient {
 	client: reqwest::Client,
 	user_agent: String,
@@ -15,6 +16,7 @@ impl AuthorizedClient {
 	pub fn client(&self) -> &reqwest::Client {
 		&self.client
 	}
+	#[allow(dead_code)]
 	pub(crate) fn auth_token(&self) -> &str {
 		&self.auth_token
 	}
@@ -67,6 +69,7 @@ impl AuthorizedClient {
 
 	pub async fn refresh_auth_token(&mut self) {
 		#[derive(serde::Deserialize)]
+		#[allow(unused)]
 		struct Response {
 			access_token: String,
 			token_type: String,
@@ -79,7 +82,7 @@ impl AuthorizedClient {
 			.client
 			.post("https://auth.janitorai.com/auth/v1/token?grant_type=refresh_token")
 			.json(&json!({
-					"refresh_token":self.refresh_token
+			"refresh_token":self.refresh_token
 			}))
 			.header(
 				"apikey",
