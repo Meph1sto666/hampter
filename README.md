@@ -46,7 +46,7 @@ This project is a wrapper for JanitorAI's API to make communication with the ser
   - [x] get tag list
   - [x] get custom tag suggestions
   - [x] set following tags
-- [ ] reviews
+- [x] reviews
 - [ ] favourites
 - [ ] add crate to cargo
 
