@@ -1,4 +1,4 @@
-use crate::types::error::AuthorizedClientError;
+use crate::types::error::HampterError;
 use reqwest::{self, header::HeaderValue};
 use serde_json::json;
 
@@ -34,7 +34,7 @@ impl AuthorizedClient {
 		refresh_token: &str,
 		x_app_version: &str,
 		api_key: &str,
-	) -> Result<AuthorizedClient, AuthorizedClientError> {
+	) -> Result<AuthorizedClient, HampterError> {
 		let mut request_headers: reqwest::header::HeaderMap = reqwest::header::HeaderMap::new();
 		request_headers.insert(
 			"Cookie",
@@ -71,7 +71,7 @@ impl AuthorizedClient {
 	 * Generate a fresh bearer
 	 * The refresh-token and bearer are modified in place
 	 */
-	pub async fn refresh_auth_token(&mut self) -> Result<(), AuthorizedClientError> {
+	pub async fn refresh_auth_token(&mut self) -> Result<(), HampterError> {
 		#[derive(serde::Deserialize)]
 		#[allow(unused)]
 		struct Response {

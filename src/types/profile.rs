@@ -1,4 +1,4 @@
-use super::{error::AuthorizedClientError, misc};
+use super::{error::HampterError, misc};
 use crate::auth::AuthorizedClient;
 use getters2::Getters;
 use serde;
@@ -115,7 +115,7 @@ impl Profile {
 	pub async fn get(
 		client: &AuthorizedClient,
 		mut id: Option<&str>,
-	) -> Result<Profile, AuthorizedClientError> {
+	) -> Result<Profile, HampterError> {
 		Ok(client
 			.client()
 			.get(format!(

@@ -1,3 +1,4 @@
+use super::error::HampterError;
 use super::{misc, profile::Profile};
 use crate::auth::AuthorizedClient;
 use futures::io::BufReader;
@@ -56,11 +57,6 @@ impl Message {
 		}
 	}
 }
-impl ToString for Message {
-	fn to_string(&self) -> String {
-		serde_json::to_string(self).expect("Failed to parse message")
-	}
-}
 
 #[derive(serde::Deserialize, serde::Serialize, Getters)]
 pub struct TextDelta {
@@ -86,12 +82,15 @@ pub struct MessageChunk {
 }
 
 impl MessageChunk {
-	pub fn from_line(line: &String) -> Option<MessageChunk> {
+	pub fn from_line(line: &String) -> Result<Option<MessageChunk>, serde_json::Error> {
 		if line.is_empty() || line.to_lowercase().contains("data: [done]") {
-			return None;
+			return Ok(None);
 		}
 		let parsed = serde_json::from_str(&line.to_string().split_off(6));
-		return Some(parsed.expect("Failed to parse response chunk"));
+		match parsed {
+			Ok(val) => Ok(Some(val)),
+			Err(e) => Err(e),
+		}
 	}
 
 	pub fn content(&self, mut index: Option<usize>) -> &String {
@@ -126,43 +125,36 @@ pub struct Chat {
 	chat_messages: Vec<Message>,
 }
 
-impl ToString for Chat {
-	fn to_string(&self) -> String {
-		serde_json::to_string(self).expect("Failed to serialize Chat")
-	}
-}
-
 impl Chat {
 	/**
 	 * Chat actions
 	 */
-	pub async fn get(id: u64, client: &AuthorizedClient) -> Chat {
-		client
+	pub async fn get(id: u64, client: &AuthorizedClient) -> Result<Chat, HampterError> {
+		Ok(client
 			.client()
 			.get(format!("https://janitorai.com/hampter/chats/{}", id))
 			.send()
-			.await
-			.expect("Failed to send get chat request")
-			.error_for_status()
-			.expect("Invalid response")
+			.await?
+			.error_for_status()?
 			.json::<Chat>()
-			.await
-			.expect("Failed to parse chat response")
+			.await?)
 	}
 
-	pub async fn delete(id: u64, client: &AuthorizedClient) {
+	pub async fn delete(id: u64, client: &AuthorizedClient) -> Result<(), HampterError> {
 		client
 			.client()
 			.delete(format!("https://janitorai.com/hampter/chats/{id}", id = id))
 			.send()
-			.await
-			.expect("Failed to send chat delete message")
-			.error_for_status()
-			.expect("Invalid response");
+			.await?
+			.error_for_status()?;
+		Ok(())
 	}
-	
+
 	#[must_use]
-	pub async fn create(character_id: &str, client: &AuthorizedClient) -> Chat {
+	pub async fn create(
+		character_id: &str,
+		client: &AuthorizedClient,
+	) -> Result<Chat, HampterError> {
 		/**
 		 * Open a new chat with a character
 		 */
@@ -187,14 +179,11 @@ impl Chat {
 				"character_id": character_id
 			}))
 			.send()
-			.await
-			.expect("Failed to create new chat")
-			.error_for_status()
-			.expect("Invalid response")
+			.await?
+			.error_for_status()?
 			.json::<CreateChatResponse>()
-			.await
-			.expect("Failed to parse response");
-		return Self::get(res.id, client).await;
+			.await?;
+		return Ok(Self::get(res.id, client).await?);
 	}
 }
 
@@ -228,15 +217,18 @@ impl Chat {
 		profile: &Profile,
 		mut mode: Option<GenerationMode>,
 		message: Option<Message>,
-	) -> futures::io::Lines<
-		BufReader<
-			stream::IntoAsyncRead<
-				MapErr<
-					impl Stream<Item = Result<tokio_util::bytes::Bytes, reqwest::Error>>,
-					impl FnMut(reqwest::Error) -> io::Error,
+	) -> Result<
+		futures::io::Lines<
+			BufReader<
+				stream::IntoAsyncRead<
+					MapErr<
+						impl Stream<Item = Result<tokio_util::bytes::Bytes, reqwest::Error>>,
+						impl FnMut(reqwest::Error) -> io::Error,
+					>,
 				>,
 			>,
 		>,
+		HampterError,
 	> {
 		let mode = mode.get_or_insert(GenerationMode::New);
 		if *mode == GenerationMode::Suggestion
@@ -274,21 +266,23 @@ impl Chat {
 			}))
 			.header(reqwest::header::ORIGIN, "https://janitorai.com")
 			.send()
-			.await
-			.expect("Failed to post generation request")
-			.error_for_status()
-			.expect("Invalid response");
+			.await?
+			.error_for_status()?;
 
 		let reader = response
 			.bytes_stream()
 			.map_err(|e| io::Error::new(io::ErrorKind::Other, e))
 			.into_async_read();
 		let decoder = BufReader::new(reader);
-		decoder.lines()
+		Ok(decoder.lines())
 	}
 
-	pub async fn send_message(&mut self, message: Message, client: &AuthorizedClient) -> Message {
-		client
+	pub async fn send_message(
+		&mut self,
+		message: Message,
+		client: &AuthorizedClient,
+	) -> Result<Message, HampterError> {
+		Ok(client
 			.client()
 			.post("https://janitorai.com/hampter/chats/615543871/messages")
 			.json(&json!({
@@ -301,16 +295,13 @@ impl Chat {
 				"rating": message.rating
 			}))
 			.send()
-			.await
-			.expect("Failed to post message")
-			.error_for_status()
-			.expect("Invalid response")
+			.await?
+			.error_for_status()?
 			.json::<Vec<Message>>()
-			.await
-			.expect("Failed to parse post response")
+			.await?
 			.get(0)
 			.expect("Response was empty")
-			.clone()
+			.clone())
 	}
 
 	pub async fn edit_message(
@@ -318,7 +309,7 @@ impl Chat {
 		message_id: u64,
 		content: &str,
 		client: &AuthorizedClient,
-	) {
+	) -> Result<(), HampterError> {
 		client
 			.client()
 			.patch(
@@ -334,13 +325,13 @@ impl Chat {
 				"message": content
 			}))
 			.send()
-			.await
-			.expect("Failed to send message patch");
+			.await?;
 		self.chat_messages
 			.iter_mut()
 			.find(|e: &&mut Message| e.id == message_id)
 			.expect("No message with the given ID")
 			.message = content.to_string();
+		Ok(())
 	}
 	pub fn get_message(&self, message_id: u64) -> std::option::Option<Message> {
 		self.chat_messages
@@ -349,7 +340,11 @@ impl Chat {
 			.cloned()
 	}
 
-	pub async fn delete_messages(&mut self, message_ids: Vec<u64>, client: &AuthorizedClient) {
+	pub async fn delete_messages(
+		&mut self,
+		message_ids: Vec<u64>,
+		client: &AuthorizedClient,
+	) -> Result<(), HampterError> {
 		client
 			.client()
 			.delete(
@@ -363,8 +358,7 @@ impl Chat {
 				"message_ids": message_ids
 			}))
 			.send()
-			.await
-			.expect("Failed to send delete message");
+			.await?;
 		for m_id in message_ids {
 			self.chat_messages.remove(
 				self.chat_messages
@@ -373,5 +367,6 @@ impl Chat {
 					.unwrap(),
 			);
 		}
+		Ok(())
 	}
 }

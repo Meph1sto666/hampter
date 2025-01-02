@@ -1,4 +1,4 @@
-use super::error::AuthorizedClientError;
+use super::error::HampterError;
 use crate::auth::AuthorizedClient;
 use chrono;
 use getters2::Getters;
@@ -33,7 +33,7 @@ impl Review {
 	pub async fn get(
 		character_id: &str,
 		client: &AuthorizedClient,
-	) -> Result<Vec<Review>, AuthorizedClientError> {
+	) -> Result<Vec<Review>, HampterError> {
 		Ok(client
 			.client()
 			.get(format!(

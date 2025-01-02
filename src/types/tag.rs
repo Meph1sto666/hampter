@@ -5,7 +5,7 @@ use chrono;
 use getters2::Getters;
 use serde_json::json;
 
-use super::error::AuthorizedClientError;
+use super::error::HampterError;
 
 #[derive(serde::Deserialize, serde::Serialize, Getters)]
 pub struct Tag {
@@ -35,7 +35,7 @@ impl Tag {
 	/**
 	 * Request the list of "official" tags introduced by JanitorAI
 	 */
-	pub async fn get_tag_list(client: &AuthorizedClient) -> Result<Vec<Tag>, AuthorizedClientError> {
+	pub async fn get_tag_list(client: &AuthorizedClient) -> Result<Vec<Tag>, HampterError> {
 		Ok(client
 			.client()
 			.get("https://janitorai.com/hampter/tags")
@@ -50,7 +50,7 @@ impl Tag {
 	/**
 	 * Returns the list of custom tags the client is following
 	 */
-	pub async fn get_following_tags(client: &AuthorizedClient) -> Result<Vec<String>, AuthorizedClientError> {
+	pub async fn get_following_tags(client: &AuthorizedClient) -> Result<Vec<String>, HampterError> {
 		/**
 		 * These are custom tags
 		 */
@@ -75,7 +75,7 @@ impl Tag {
 	 * Update the list of the tags the client is following
 	 * This overwrites the previous list!
 	 */
-	pub async fn follow_tags(tags: Vec<&str>, client: &AuthorizedClient) -> Result<(), AuthorizedClientError> {
+	pub async fn follow_tags(tags: Vec<&str>, client: &AuthorizedClient) -> Result<(), HampterError> {
 		client
 			.client()
 			.post("https://janitorai.com/hampter/following/tags")
@@ -96,7 +96,7 @@ impl Tag {
 	pub async fn get_tag_suggestion(
 		prefix: &str,
 		client: &AuthorizedClient,
-	) -> Result<Vec<String>, AuthorizedClientError> {
+	) -> Result<Vec<String>, HampterError> {
 		if prefix.len() < 3 {
 			return Ok(vec![]);
 		}

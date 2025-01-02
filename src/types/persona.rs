@@ -1,4 +1,4 @@
-use super::error::AuthorizedClientError;
+use super::error::HampterError;
 use crate::auth::AuthorizedClient;
 use chrono;
 use getters2::Getters;
@@ -18,7 +18,7 @@ impl Persona {
 	/**
 	 * Get a list of the clients personas
 	 */
-	pub async fn list(client: &AuthorizedClient) -> Result<Vec<Persona>, AuthorizedClientError> {
+	pub async fn list(client: &AuthorizedClient) -> Result<Vec<Persona>, HampterError> {
 		Ok(client
 			.client()
 			.get("https://janitorai.com/hampter/personas/mine")
@@ -35,7 +35,7 @@ impl Persona {
 	pub async fn get(
 		id: &str,
 		client: &AuthorizedClient,
-	) -> Result<Persona, AuthorizedClientError> {
+	) -> Result<Persona, HampterError> {
 		Ok(client
 			.client()
 			.get(format!("https://janitorai.com/hampter/personas/{}", id))
