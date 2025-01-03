@@ -64,13 +64,13 @@ let client: &AuthorizedClient = &AuthorizedClient::new(
 	"refresh_token", // obligatory to request a new bearer token every 30 minutes
 	"x_app_version", // not needed for most requests yet essential for text generation	
 	"api_key" // only needed for refreshing the auth token
-)
+)?;
 ```
 
 ### Refresh the auth token
 
 ```rust
-client.refresh_auth_token(); // client has to be mutable
+client.refresh_auth_token()?; // client has to be mutable
 ```
 
 ### Generate a response
@@ -89,9 +89,9 @@ let mut lines = chat.generate(&client, &profile, None, None).await;
 
 while let Some(line) = Some(lines.next()) {
 	let line_content = line.await;
-	if line_content.is_none() { break; } // check for "EOF"
+	if line_content.is_none() { break; } // check for the stream end
 	let json_str = &line_content.unwrap().unwrap();
-	let chunk = MessageChunk::from_line(json_str);
+	let chunk = MessageChunk::from_line(json_str)?;
 	if chunk.is_some() {
 		print!("{}", chunk.unwrap().content(None));
 		let _ = io::stdout().flush(); // flush for live preview

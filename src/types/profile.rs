@@ -1,9 +1,8 @@
+use super::{error::HampterError, misc};
 use crate::auth::AuthorizedClient;
 use getters2::Getters;
 use serde;
 use std::collections::HashMap;
-
-use super::misc;
 
 #[derive(serde::Deserialize, serde::Serialize, Getters)]
 struct GenerationSettings {
@@ -42,11 +41,11 @@ pub struct Config {
 	debug_mode: bool,
 	#[serde(skip)]
 	use_pygmalion_format: bool,
-	#[serde(rename="openAIKey")]
+	#[serde(rename = "openAIKey")]
 	open_aikey: Option<String>,
-	#[serde(rename="claudeApiKey")]
+	#[serde(rename = "claudeApiKey")]
 	claude_api_key: Option<String>,
-	#[serde(rename="reverseProxyKey")]
+	#[serde(rename = "reverseProxyKey")]
 	reverse_proxy_key: Option<String>,
 }
 
@@ -70,7 +69,7 @@ impl Default for Config {
 			use_pygmalion_format: true,
 			open_aikey: None,
 			claude_api_key: None,
-			reverse_proxy_key: None
+			reverse_proxy_key: None,
 		}
 	}
 }
@@ -82,7 +81,7 @@ pub struct Persona {
 	avatar: Option<String>,
 	appearance: String,
 	created_at: chrono::DateTime<chrono::Utc>,
-	updated_at: chrono::DateTime<chrono::Utc>
+	updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Getters)]
@@ -106,26 +105,27 @@ pub struct Profile {
 	// style: {},
 	created_at: chrono::DateTime<chrono::Utc>,
 	// user_roles: [],
-	personas: Option<Vec<Persona>>
+	personas: Option<Vec<Persona>>,
 }
 impl Profile {
-	pub async fn get(client: &AuthorizedClient, mut id: Option<&str>) -> Profile {
-		client
+	/**
+	 * Fetch a user profile
+	 * If no ID is provided the client profile will be used
+	 */
+	pub async fn get(
+		client: &AuthorizedClient,
+		mut id: Option<&str>,
+	) -> Result<Profile, HampterError> {
+		Ok(client
 			.client()
-			.get(format!("https://janitorai.com/hampter/profiles/{i}", i=id.get_or_insert("mine")))
+			.get(format!(
+				"https://janitorai.com/hampter/profiles/{i}",
+				i = id.get_or_insert("mine")
+			))
 			.send()
-			.await
-			.expect("Failed to fetch profile")
-			.error_for_status()
-			.expect("Invalid response")
+			.await?
+			.error_for_status()?
 			.json::<Profile>()
-			.await
-			.expect("Failed to parse profile")
-	}
-}
-
-impl ToString for Profile {
-	fn to_string(&self) -> String {
-		serde_json::to_string(self).expect("Failed to parse profile")
+			.await?)
 	}
 }

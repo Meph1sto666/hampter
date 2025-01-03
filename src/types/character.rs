@@ -1,6 +1,5 @@
+use super::{error::HampterError, misc, tag::Tag};
 use crate::auth::AuthorizedClient;
-
-use super::{misc, tag::Tag};
 use getters2::Getters;
 use serde;
 
@@ -79,18 +78,18 @@ impl ToString for SortMode {
 }
 
 impl Character {
-	pub async fn get(id: &str, client: &AuthorizedClient) -> Character {
-		client
+	pub async fn get(
+		id: &str,
+		client: &AuthorizedClient,
+	) -> Result<Character, HampterError> {
+		Ok(client
 			.client()
 			.get(format!("https://janitorai.com/hampter/characters/{}", id))
 			.send()
-			.await
-			.expect("Failed to send request")
-			.error_for_status()
-			.expect("Invalid response")
+			.await?
+			.error_for_status()?
 			.json::<Character>()
-			.await
-			.expect("Failed to format response")
+			.await?)
 	}
 	pub async fn query(
 		client: &AuthorizedClient,
@@ -100,7 +99,7 @@ impl Character {
 		mut sort: Option<SortMode>,
 		mut tag_ids: Option<Vec<u32>>,
 		mut custom_tags: Option<Vec<&str>>,
-	) -> QueryResponse {
+	) -> Result<QueryResponse, HampterError> {
 		let mut query_string: String = format!(
 			"https://janitorai.com/hampter/characters?page={page}&mode={mode}&sort={sort}",
 			sort = sort.get_or_insert(SortMode::Popular).to_string(),
@@ -116,16 +115,13 @@ impl Character {
 			query_string.push_str(format!("&search={}", search.unwrap()).as_str());
 		}
 
-		client
+		Ok(client
 			.client()
 			.get(query_string)
 			.send()
-			.await
-			.expect("Failed to send request")
-			.error_for_status()
-			.expect("Invalid response")
+			.await?
+			.error_for_status()?
 			.json::<QueryResponse>()
-			.await
-			.expect("Failed to format response")
+			.await?)
 	}
 }

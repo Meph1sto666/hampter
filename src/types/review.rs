@@ -1,3 +1,4 @@
+use super::error::HampterError;
 use crate::auth::AuthorizedClient;
 use chrono;
 use getters2::Getters;
@@ -26,20 +27,23 @@ pub struct Review {
 }
 
 impl Review {
-	pub async fn get(character_id: &str, client: &AuthorizedClient) -> Vec<Review> {
-		client
+	/**
+	 * Request the reviews of a bot
+	 */
+	pub async fn get(
+		character_id: &str,
+		client: &AuthorizedClient,
+	) -> Result<Vec<Review>, HampterError> {
+		Ok(client
 			.client()
 			.get(format!(
 				"https://janitorai.com/hampter/reviews/{}",
 				character_id
 			))
 			.send()
-			.await
-			.expect("Failed to send request")
-			.error_for_status()
-			.expect("Invalid response")
+			.await?
+			.error_for_status()?
 			.json::<Vec<Review>>()
-			.await
-			.expect("Failed to parse response")
+			.await?)
 	}
 }

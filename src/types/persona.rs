@@ -1,3 +1,4 @@
+use super::error::HampterError;
 use crate::auth::AuthorizedClient;
 use chrono;
 use getters2::Getters;
@@ -14,31 +15,34 @@ pub struct Persona {
 }
 
 impl Persona {
-	pub async fn list(client: &AuthorizedClient) -> Vec<Persona> {
-		client
+	/**
+	 * Get a list of the clients personas
+	 */
+	pub async fn list(client: &AuthorizedClient) -> Result<Vec<Persona>, HampterError> {
+		Ok(client
 			.client()
 			.get("https://janitorai.com/hampter/personas/mine")
 			.send()
-			.await
-			.expect("Failed to send request")
-			.error_for_status()
-			.expect("Invalid response")
+			.await?
+			.error_for_status()?
 			.json::<Vec<Persona>>()
-			.await
-			.expect("Failed to parse response")
+			.await?)
 	}
 
-	pub async fn get(id: &str, client: &AuthorizedClient) -> Persona {
-		client
+	/**
+	 * Fetch a persona by its ID
+	 */
+	pub async fn get(
+		id: &str,
+		client: &AuthorizedClient,
+	) -> Result<Persona, HampterError> {
+		Ok(client
 			.client()
 			.get(format!("https://janitorai.com/hampter/personas/{}", id))
 			.send()
-			.await
-			.expect("Failed to send request")
-			.error_for_status()
-			.expect("Invalid response")
+			.await?
+			.error_for_status()?
 			.json::<Persona>()
-			.await
-			.expect("Failed to parse response")
+			.await?)
 	}
 }
